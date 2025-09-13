@@ -1,0 +1,45 @@
+# Create conda environment with Python 3.10 (most compatible)
+conda create -n sf3d python=3.10
+
+conda init
+conda activate sf3d
+
+# Clone the repository first
+git clone https://github.com/Stability-AI/stable-fast-3d.git
+cd stable-fast-3d
+
+# install torch dependencies
+conda install pytorch torchvision torchaudio -c pytorch
+
+# Install huggingface-hub if not already installed
+pip install --upgrade huggingface-hub
+
+# Login with your token
+huggingface-cli login
+
+export OMP_NUM_THREADS=1
+
+
+
+# Install requirements
+pip install -r requirements.txt
+
+
+pip install fastapi
+pip install python-multipart
+pip install uvicorn
+
+pip install usd-core
+
+# setup usdzip: https://chatgpt.com/c/68c548b6-8de0-8324-a1b6-ad69ed950ac6
+
+wget https://developer.nvidia.com/downloads/USD/usd_binaries/24.08/usd.py310.manylinux_2_35_x86_64.usdview.release@0.24.08-gl.7245+v24.08.59992d21.zip
+
+unzip usd.py310.manylinux_2_35_x86_64.usdview.release@0.24.08-gl.7245+v24.08.59992d21.zip
+
+export PATH=/usr/local/usd/scripts:$PATH
+export PYTHONPATH=/usr/local/usd/python:$PYTHONPATH
+export LD_LIBRARY_PATH=/usr/local/usd/lib:$LD_LIBRARY_PATH
+
+# run api
+python api_cuda.py

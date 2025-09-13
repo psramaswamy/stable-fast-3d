@@ -133,9 +133,21 @@ if __name__ == "__main__":
             )
 
         if len(image) == 1:
-            out_mesh_path = os.path.join(output_dir, str(i), "mesh.glb")
-            mesh.export(out_mesh_path, include_normals=True)
+            out_mesh_path = os.path.join(output_dir, str(i), "mesh.usdz")
+            # Try USDZ export first, fallback to GLB
+            from sf3d.utils import export_mesh_as_usdz
+            success = export_mesh_as_usdz(mesh, out_mesh_path)
+            if not success:
+                print("⚠️ USDZ export failed, falling back to GLB")
+                out_mesh_path = os.path.join(output_dir, str(i), "mesh.glb")
+                mesh.export(out_mesh_path, include_normals=True)
         else:
             for j in range(len(mesh)):
-                out_mesh_path = os.path.join(output_dir, str(i + j), "mesh.glb")
-                mesh[j].export(out_mesh_path, include_normals=True)
+                out_mesh_path = os.path.join(output_dir, str(i + j), "mesh.usdz")
+                # Try USDZ export first, fallback to GLB
+                from sf3d.utils import export_mesh_as_usdz
+                success = export_mesh_as_usdz(mesh[j], out_mesh_path)
+                if not success:
+                    print(f"⚠️ USDZ export failed for mesh {j}, falling back to GLB")
+                    out_mesh_path = os.path.join(output_dir, str(i + j), "mesh.glb")
+                    mesh[j].export(out_mesh_path, include_normals=True)
