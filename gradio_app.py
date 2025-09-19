@@ -68,21 +68,10 @@ def run_model(input_image, remesh_option, vertex_count, texture_size):
             )
             trimesh_mesh = trimesh_mesh[0]
 
-    # Create new tmp file for USDZ
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".usdz")
+    # Create new tmp file
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
 
-    # Export as USDZ using our custom function
-    from sf3d.utils import export_mesh_as_usdz
-    success = export_mesh_as_usdz(trimesh_mesh, tmp_file.name)
-    
-    if not success:
-        # Fallback to GLB if USDZ export fails
-        print("⚠️ USDZ export failed in Gradio, falling back to GLB format")
-        tmp_file.close()
-        os.unlink(tmp_file.name)
-        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
-        trimesh_mesh.export(tmp_file.name, file_type="glb", include_normals=True)
-    
+    trimesh_mesh.export(tmp_file.name, file_type="glb", include_normals=True)
     generated_files.append(tmp_file.name)
 
     print("Generation took:", time.time() - start, "s")
@@ -377,4 +366,4 @@ with gr.Blocks() as demo:
         ],
     )
 
-demo.queue().launch(share=True)
+demo.queue().launch(share=False)

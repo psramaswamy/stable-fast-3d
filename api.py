@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Stable Fast 3D API",
-    description="Convert 2D images to 3D USDZ models",
+    description="Convert 2D images to 3D GLB models",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -74,7 +74,7 @@ async def root():
         "endpoints": {
             "POST /generate": "Generate 3D model from image",
             "GET /status/{job_id}": "Check job status",
-            "GET /download/{job_id}": "Download generated model (USDZ format)",
+            "GET /download/{job_id}": "Download generated model (GLB format)",
             "GET /health": "Health check"
         }
     }
@@ -136,7 +136,7 @@ async def generate_3d(
 def process_image_subprocess(job_id: str, image_path: Path, texture_resolution: int, remesh_option: str, target_vertex_count: int):
     """Process using the run.py script which we know works"""
     try:
-        output_filename = f"{job_id}.usdz"
+        output_filename = f"{job_id}.glb"
         
         # Build command - run.py creates subdirectories with index numbers
         cmd = [
@@ -173,16 +173,16 @@ def process_image_subprocess(job_id: str, image_path: Path, texture_resolution: 
         
         print(f"Looking for mesh files at: {expected_mesh_usdz} or {expected_mesh_glb}")
         
-        # Check for USDZ first, then GLB
-        if expected_mesh_usdz.exists():
-            expected_mesh_file = expected_mesh_usdz
-            print(f"Found USDZ file: {expected_mesh_file}")
-        elif expected_mesh_glb.exists():
+        # Check for GLB first, then USDZ
+        if expected_mesh_glb.exists():
             expected_mesh_file = expected_mesh_glb
-            # Update output filename and path to match GLB format
-            output_filename = f"{job_id}.glb"
+            print(f"Found GLB file: {expected_mesh_file}")
+        elif expected_mesh_usdz.exists():
+            expected_mesh_file = expected_mesh_usdz
+            # Update output filename and path to match USDZ format
+            output_filename = f"{job_id}.usdz"
             final_output = OUTPUT_DIR / output_filename
-            print(f"Found GLB file (USDZ failed): {expected_mesh_file}")
+            print(f"Found USDZ file (GLB failed): {expected_mesh_file}")
         else:
             expected_mesh_file = None
         
@@ -197,9 +197,9 @@ def process_image_subprocess(job_id: str, image_path: Path, texture_resolution: 
             jobs[job_id]["output_file"] = output_filename
             print(f"Successfully moved mesh to: {final_output}")
         else:
-            # Fallback: look for any newly created mesh files (both formats)
+            # Fallback: look for any newly created mesh files (GLB first, then USDZ)
             print("Expected files not found, searching for any mesh files...")
-            mesh_files = list(OUTPUT_DIR.glob("*/mesh.usdz")) + list(OUTPUT_DIR.glob("*/mesh.glb"))
+            mesh_files = list(OUTPUT_DIR.glob("*/mesh.glb")) + list(OUTPUT_DIR.glob("*/mesh.usdz"))
             if mesh_files:
                 # Get the most recently created mesh file
                 newest_mesh = max(mesh_files, key=lambda p: p.stat().st_mtime)
@@ -253,18 +253,11 @@ def process_image_direct(job_id: str, image_path: Path):
             mesh = model.run_image(image)
         
         # Save output
-        output_filename = f"{job_id}.usdz"
+        output_filename = f"{job_id}.glb"
         output_path = OUTPUT_DIR / output_filename
         
-        # Try USDZ export first, fallback to GLB
-        from sf3d.utils import export_mesh_as_usdz
-        success = export_mesh_as_usdz(mesh, output_path)
-        
-        if not success:
-            print("⚠️ USDZ export failed, falling back to GLB format")
-            output_filename = f"{job_id}.glb"
-            output_path = OUTPUT_DIR / output_filename
-            mesh.export(str(output_path), file_type="glb", include_normals=True)
+        # Export as GLB directly
+        mesh.export(str(output_path), file_type="glb", include_normals=True)
         
         # Update job status
         jobs[job_id]["status"] = "completed"
@@ -315,11 +308,11 @@ async def download_model(job_id: str):
     
     return FileResponse(
         path=file_path,
-        media_type="application/octet-stream",
+        media_type="model/gltf-binary",
         filename=filename,
         headers={
             "Content-Disposition": f"attachment; filename={filename}",
-            "Content-Type": "application/octet-stream"
+            "Content-Type": "model/gltf-binary"
         }
     )
 
@@ -341,4 +334,4 @@ async def cleanup_job(job_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8002)
